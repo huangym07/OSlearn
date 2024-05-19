@@ -3,27 +3,28 @@
 
 int main()
 {
-  int p_arr[2];
-  pipe(p_arr);
+  // using two pipes instead of wait() in the parent
+  int p1[2], p2[2];
+  pipe(p1);
+  pipe(p2);
   
   int pid = fork();
 
+  char buf[] = {'a'};
   if (pid == 0) {
-    char tmp;
-    read(p_arr[0], &tmp, 1);
+    // child
+    close(p1[1]);
+    read(p1[0], buf, 1);
     fprintf(1, "%d: received ping\n", getpid());
-    write(p_arr[1], &tmp, 1);
-    close(p_arr[0]);
-    close(p_arr[1]);
+    write(p2[1], buf, 1);
     exit(0);
   } else {
-    char tmp;
-    write(p_arr[1], "?", 1);
-    wait(0);
-    read(p_arr[0], &tmp, 1);
+    // parent
+    close(p2[1]);
+    close(p1[0]);
+    write(p1[1], buf, 1);
+    read(p2[0], buf, 1);
     fprintf(1, "%d: received pong\n", getpid());
-    close(p_arr[0]);
-    close(p_arr[1]);
   }
 
   exit(0);
