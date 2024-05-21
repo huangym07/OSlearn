@@ -55,9 +55,14 @@ ls(char *path)
     p = buf+strlen(buf);
     *p++ = '/';
     while(read(fd, &de, sizeof(de)) == sizeof(de)){
-      if(de.inum == 0)
+      if(de.inum == 0) {
+        // r如果有空余的空的空间,读取的时候就会得到 de.inum 为 0, de.name 也是空的.
+        // . 和 .. 的 de.inum 都为 1，并不是一定为 1，无法通过 de.inum 来跳过它们两个
+        // printf("de.inum is %d, and its name is %s\n", de.inum, de.name);
         continue;
+      }
       memmove(p, de.name, DIRSIZ);
+      // printf("de.inum is %d, and its name is %s\n", de.inum, de.name);
       p[DIRSIZ] = 0;
       if(stat(buf, &st) < 0){
         printf("ls: cannot stat %s\n", buf);
