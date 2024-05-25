@@ -8,6 +8,16 @@
 #include "proc.h"
 
 uint64
+sys_trace(void)
+{
+  int trace_mask;
+  if (argint(0, &trace_mask) < 0) 
+     return -1;
+  myproc()->tracemask |= trace_mask;
+  return 0;
+}
+
+uint64
 sys_exit(void)
 {
   int n;
