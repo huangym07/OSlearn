@@ -695,3 +695,19 @@ procdump(void)
     printf("\n");
   }
 }
+
+// Count how many processes are not in the state of UNUSED
+uint64
+count_free_proc(void)
+{
+  uint64 count = 0;
+  struct proc *p;
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state != UNUSED) 
+      count += 1;
+    release(&p->lock);
+  }
+  return count;
+}
+
