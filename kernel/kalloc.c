@@ -33,6 +33,7 @@ kinit()
 void
 freerange(void *pa_start, void *pa_end)
 {
+  // printf("PHYSTOP is %p, and it's not 0x8640 0000\n", PHYSTOP); Figure 3.3 in xv6 book said PHYSTOP is 0x8640 0000, it's a fault
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)

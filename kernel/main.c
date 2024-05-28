@@ -10,7 +10,7 @@ volatile static int started = 0;
 void
 main()
 {
-  if(cpuid() == 0){
+  if(cpuid() == 0){ // all cpus will jumps into start() namely here, but only one cpu whose cpuid() is equal to zero, will initialize the following things.
     consoleinit();
     printfinit();
     printf("\n");
