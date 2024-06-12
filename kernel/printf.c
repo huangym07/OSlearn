@@ -1,4 +1,3 @@
-//
 // formatted console output -- printf, panic.
 //
 
@@ -121,6 +120,7 @@ panic(char *s)
   printf("panic: ");
   printf(s);
   printf("\n");
+  backtrace();
   panicked = 1; // freeze uart output from other CPUs
   for(;;)
     ;
@@ -131,4 +131,18 @@ printfinit(void)
 {
   initlock(&pr.lock, "pr");
   pr.locking = 1;
+}
+
+void 
+backtrace()
+{
+  printf("backtrace:\n");
+
+  uint64 *s0 = (uint64 *)r_fp(), ra;
+
+  while ((uint64)s0 != PGROUNDDOWN((uint64)s0)) {
+    ra = *(s0 - 1);
+    printf("%p\n", ra);
+    s0 = (uint64 *)*(s0 - 2);
+  }
 }

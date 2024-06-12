@@ -1,0 +1,8 @@
+Backtrace
+1: 添加函数原型 backtrace() 到 defs.h
+2: 添加 static 内联汇编到 riscv.h 来读取 s0 寄存器的值
+3: kernel/printf.c 中编写 backtrace
+  注意：
+    (1): 栈帧指向可用栈的最大地址 + 1 的位置，因此终止条件为 s0 != PGROUNDDOWN(s0)，当 s0 == PGROUNDDOWN(s0) 时，已经是该栈上第一个被调用的函数，不用再向前追溯了
+    (2): printf 是 kernel/printf.c 中实现的，想要打印地址，使用 %p
+4: kernel/sysproc.c sys_sleep 中调用 backtrace

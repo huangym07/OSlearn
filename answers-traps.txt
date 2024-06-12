@@ -1,0 +1,11 @@
+Register a2 holds 13 in main's call to printf.
+
+There are no calls to f and g. Assembly code just use 12 as f(8)+1 at address 0x26.
+
+Printf is located at 0x630.
+
+The value in the register ra just after the jalr to printf in main is 0x38.
+
+The output is "HE110 World",and if the RISC-V were instead big-endian, we could set i to 0x726c6400 to yield the same output. We needn't to change 57616 to a different value.
+
+THe value of the register a2 will be printed after 'y=', because the third argument should be passed in the register a2 in the C calling conventions for RISC-V.
