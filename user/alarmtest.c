@@ -115,6 +115,10 @@ test2()
   int pid;
   int status;
 
+  // printf("test1's alarm is not canceled\n");
+
+  // for (int i = 0; i < 1000000000; i++) ;
+
   printf("test2 start\n");
   if ((pid = fork()) < 0) {
     printf("test2: fork failed\n");
@@ -143,6 +147,7 @@ test2()
 void
 slow_handler()
 {
+  // printf("this is slow_handler!!!\n");
   count++;
   printf("alarm!\n");
   if (count > 1) {

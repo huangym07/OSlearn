@@ -105,15 +105,28 @@ uint64
 sys_sigalarm(void)
 {
   struct proc *p = myproc();
-  p->interval = p->trapframe->a0;
-  p->handler = p->trapframe->a1;
+
+  int interval = 0;
+  if(argint(0, &interval) < 0) 
+    return -1;
+  uint64 address_handler;
+  if(argaddr(1, &address_handler) < 0)
+    return -1;
+ 
+  p->interval = interval;
+  p->handler = address_handler;
   p->countticks = 0;
+ 
   return 0;
 }
 
 // just return 0 for now.
+extern struct proc copy;
 uint64 
 sys_sigreturn(void)
 {
-  return 0;
+  struct proc *p = myproc();
+  *p->trapframe = *p->alarmframe;
+  p->inalarm = 0;
+  return p->trapframe->a0;
 }

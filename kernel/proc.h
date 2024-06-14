@@ -106,4 +106,6 @@ struct proc {
   int interval;                // Alarm interval
   uint64 handler;              // Pointer as virtual address in user space to the alarm handler function
   int countticks;              // Count for ticks since the last call to handler
+  struct trapframe *alarmframe;       // Copy of p->trapframe for restore after alarm
+  int inalarm;              // Now the process is in alarm.
 };

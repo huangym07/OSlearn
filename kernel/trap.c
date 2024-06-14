@@ -33,6 +33,9 @@ trapinithart(void)
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
 //
+
+struct proc copy; // copy of the p for restoring after alarm
+
 void
 usertrap(void)
 {
@@ -68,8 +71,10 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     if (which_dev == 2 && p->interval != 0) {
       p->countticks++;
-      if (p->countticks == p->interval) {
+      if (p->countticks >= p->interval && !p->inalarm) {
         p->countticks = 0;
+        p->inalarm = 1;
+        *p->alarmframe = *p->trapframe;
         p->trapframe->epc = p->handler;
       }
     }

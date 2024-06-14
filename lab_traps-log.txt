@@ -16,4 +16,8 @@ test0:
 5: 在 kernel/sysproc.c 的 sys_sigalarm 中存储 interval, handler, countticks=0
 6: 在 kernel/trap.c 的 usertrap 中对于系统中断 which_dev = 2 的情况，如果 alarm 已经被设置，那么增加countticks，当达到 interval 后，重置 countticks 并且将 p->trapframe->epc 设置为 handler，以便返回到用户空间后执行 handler
 7: 执行 alarmtest 后，成功打印出 alarm，test1 passed
-test1:
+test1/2:
+1: 在 kernel/proc.h 中增加 struct trapframe *alarmframe 以及 inalarm, 前者用于 sigreturn 时，能从 handler 透明地返回到中断位置, 后者用于在 alarm handler 没有返回时不会进入 alarm handler
+2: 在 kernel/proc.c allocproc 中为 alarmframe 分配空间，在 kernel/proc.c freeproc 中释放 alarmframe
+3: 在 kernel/trap.c usertrap 中，当 which_dev = 2 是定时器中断时，如果 interval 不为 0，那么说明设置好了 alarm handler，countticks++。如果 counticks >= interval，并且 inalarm 为 0，即没有处于 alarm handler，那么就拷贝一份 trapframe 到 alarmframe，并且将 countticks 归零，然后设置 p->trapframe->epc 为 alarm handler
+4: 在 sigreturn 中，从 alarmframe 恢复 p->trapframe 以便回到中断发生的位置；归零 inalarm，以便下次调用 alarm handler
