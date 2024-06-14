@@ -127,6 +127,11 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // Set the three fields for user-level alarm.
+  p->interval = 0;
+  p->handler = 0;
+  p->countticks = 0;
+
   return p;
 }
 

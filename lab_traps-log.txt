@@ -6,3 +6,14 @@ Backtrace
     (1): 栈帧指向可用栈的最大地址 + 1 的位置，因此终止条件为 s0 != PGROUNDDOWN(s0)，当 s0 == PGROUNDDOWN(s0) 时，已经是该栈上第一个被调用的函数，不用再向前追溯了
     (2): printf 是 kernel/printf.c 中实现的，想要打印地址，使用 %p
 4: kernel/sysproc.c sys_sleep 中调用 backtrace
+
+Alarm
+test0:
+1: 添加 sigalarm, sigreturn 函数原型到 user/user.h
+2: 修改 user/usys.pl, kernel/syscall.c, kernel/syscall.h
+3: 在 kernel/proc.h 中添加调用间隔 interval，调用函数指针 handler，已经过时钟周期的个数 countticks的字段
+4: 在 kernel/proc.h 的 allocproc 中初始化上面的三个字段
+5: 在 kernel/sysproc.c 的 sys_sigalarm 中存储 interval, handler, countticks=0
+6: 在 kernel/trap.c 的 usertrap 中对于系统中断 which_dev = 2 的情况，如果 alarm 已经被设置，那么增加countticks，当达到 interval 后，重置 countticks 并且将 p->trapframe->epc 设置为 handler，以便返回到用户空间后执行 handler
+7: 执行 alarmtest 后，成功打印出 alarm，test1 passed
+test1:

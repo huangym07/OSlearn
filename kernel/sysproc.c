@@ -97,3 +97,23 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// store alarm interval, 
+// pointer to the handler function 
+// and the number of ticks passed since the last call
+uint64
+sys_sigalarm(void)
+{
+  struct proc *p = myproc();
+  p->interval = p->trapframe->a0;
+  p->handler = p->trapframe->a1;
+  p->countticks = 0;
+  return 0;
+}
+
+// just return 0 for now.
+uint64 
+sys_sigreturn(void)
+{
+  return 0;
+}
