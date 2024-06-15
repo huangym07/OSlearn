@@ -13,3 +13,5 @@
       then kill this process, freeproc() is called, freeproc -> proc_freepagetable -> uvmfree ->     uvmunmap, so panic: uvmunmap: not mapped
  
  Lazy allocation:
+ 1: Allocate a physical memory and set a mapping in the process pagetable for the page fault caused by lazy allocation which means the value of stval is less than p->sz and scause is 13 or 15. We should check these.
+ 2: Delete panic("not map") in uvmunmap in vm.c, and just make it continue when it comes to PTE_V unseted.
