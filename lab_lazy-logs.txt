@@ -1,0 +1,15 @@
+  Eliminate allocation from sbrk():
+  1: 删除 kernel/sysproc.c 中 sys_sbrk 的 growproc 部分，只增加进程的 sz
+  2: According to lab doc，when we use echo hi, it will show:
+      usertrap():...
+      panic: uvmunmap
+     because:
+      echo hi -> getcmd in main in sh.c -> parsecmd -> parseline -> parsepipe -> parseexec -> exe    ccmd -> malloc in umalloc.c -> morecore
+      in morecore:
+        p = sbrk(...);
+        hp = (Header*)p;
+        hp->s.size = nu;
+      hp points to a memory unallocated, so print "usertrap():..."
+      then kill this process, freeproc() is called, freeproc -> proc_freepagetable -> uvmfree ->     uvmunmap, so panic: uvmunmap: not mapped
+ 
+ Lazy allocation:
