@@ -68,25 +68,32 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-    if ((r_scause() == 13 || r_scause() == 15) && (uint64)r_stval() < p->sz) {
-      char *mem = kalloc();
-      if(mem == 0) {
-        printf("Allocate physical memory for lazy allocation failed\n");
-        printf("This process will be killed\n");
-        p->killed = 1;
-      }
-      if(mappages(p->pagetable, PGROUNDDOWN((uint64)r_stval()), PGSIZE, (uint64)mem, PTE_R|PTE_W|PTE_U) != 0) {
-        kfree((void*)mem);
-        printf("Allocate physical memory for lazy allocation is OK\n");
-        printf("Mapping for physical memory for lazy allocation failed\n");
-        printf("This process will be killed\n");
-        p->killed = 1;
+    uint64 scause = r_scause();
+    if ((scause == 13 || scause == 15)) {
+      uint64 erraddr = r_stval();
+      if (erraddr >= PGROUNDUP(p->trapframe->sp) && erraddr < p->sz) {
+        char *mem = kalloc();
+        if (mem == 0) {
+          // printf("Allocate physical memory for lazy allocation failed\n");
+          // printf("This process will be killed\n");
+          goto killed;
+        }
+        if(mappages(p->pagetable, PGROUNDDOWN((uint64)r_stval()), PGSIZE, (uint64)mem, PTE_R|PTE_W|PTE_U) != 0) {
+          kfree((void*)mem);
+          // printf("Allocate physical memory for lazy allocation is OK\n");
+          // printf("Mapping for physical memory for lazy allocation failed\n");
+          // printf("This process will be killed\n");
+          goto killed;
+        }
+      } else {
+        goto killed;
       }
     } else {
+      killed:
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval()); 
       p->killed = 1;
     }
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
   }
 
   if(p->killed)

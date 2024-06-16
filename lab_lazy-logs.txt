@@ -15,3 +15,10 @@
  Lazy allocation:
  1: Allocate a physical memory and set a mapping in the process pagetable for the page fault caused by lazy allocation which means the value of stval is less than p->sz and scause is 13 or 15. We should check these.
  2: Delete panic("not map") in uvmunmap in vm.c, and just make it continue when it comes to PTE_V unseted.
+
+ Lazytests and Usertests:
+ 1: 在 kernel/trap.c usertrap 中，scause = 13 或者 15，并且 stval，也就是出错的虚拟地址应该小于 p->sz 大于等于 p->trapframe-sp（因为 sbrk 是分配堆内存，所以栈内存出现 page fault，那不是 lazy alocation）才进行 lazy allocation，否则直接终止进程
+ 2: 由于 lazy allocation，因此 kernel/vm.c 的uvmunmap 中，对于没有 pte 和 pte 无效的情况 continue
+3: kernel/sysproc.c sys_sbrk 中，对于 n > 0，直接增加 p->sz 即可；对 n < 0，调用 uvmunmap
+4: kernel/vm.c uvmcopy 同 2
+5: 传给 write or read 系统调用 sbrk 返回的尚未分配物理内存的虚拟地址。这种情况下，内核会调用 kerner/vm.c walkaddr 来获取对应的物理地址，所以在 walkaddr 中进行与 usertrap 中类似的操作即可，即判断 stval 是否合法，合法的话，就 lazy allocation
