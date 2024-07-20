@@ -15,6 +15,8 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
 
+extern int pref_count[]; // count for the references to physical pages.
+
 /*
  * create a direct-map page table for the kernel.
  */
@@ -308,7 +310,7 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
-  pte_t *pte;
+  pte_t *pte, *tmp;
   uint64 pa, i;
   uint flags;
   char *mem;
@@ -318,15 +320,24 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
-    pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+
+    if ((tmp = walk(new, i, 1)) == 0) {
       goto err;
     }
+
+    // 父子进程的页表都禁止写入，并且标记为 COW 页
+    *pte = *pte & ~PTE_W | PTE_COW;
+    *tmp = *pte;
+    // 增加物理页的引用
+    pref_count[PA2INDEX(PTE2PA(*tmp))]++;
+
+    // if((mem = kalloc()) == 0)
+    //   goto err;
+    // memmove(mem, (char*)pa, PGSIZE);
+    // if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
+    //   kfree(mem);
+    //   goto err;
+    // }
   }
   return 0;
 
