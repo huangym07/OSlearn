@@ -10,6 +10,7 @@ struct spinlock tickslock;
 uint ticks;
 
 extern char trampoline[], uservec[], userret[];
+extern int pref_count[];
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
@@ -29,6 +30,13 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+
+void test1() {
+  // printf("usertrap page fault\n");
+}
+void test2() {
+  // printf("kerneltrap page fault\n");
+}
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -65,9 +73,24 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if (r_scause() == 13 || r_scause() == 15) {
+    // if cow page fault
+    test1();
+    uint64 erraddr = r_stval();
+    pte_t *pte;
+    if ((pte = walk(p->pagetable, erraddr, 0)) == 0) goto killed;
+    if ((*pte & PTE_COW) == 0) goto killed;
+    char *mem = (char *)kalloc();
+    if (mem == 0) goto killed;
+    char *pa = (char *)PTE2PA(*pte);
+    memmove(mem, pa, PGSIZE);
+    int flags = (PTE_FLAGS(*pte) & (~PTE_COW)) | PTE_W;
+    *pte = PA2PTE(mem) | flags;
+    kfree(pa);
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
+    killed:
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;

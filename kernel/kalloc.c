@@ -38,7 +38,7 @@ freerange(void *pa_start, void *pa_end)
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE) {
-    pref_count[PA2INDEX(p)] = 0;
+    pref_count[PA2INDEX(p)] = 1;
     kfree(p);
   }  
 }
@@ -84,7 +84,7 @@ kalloc(void)
 
   if(r) {
     memset((char*)r, 5, PGSIZE); // fill with junk
-    pref_count[PA2INDEX(r)]++;
+    pref_count[PA2INDEX((char *)r)] = 1;
   }
 
   return (void*)r;
