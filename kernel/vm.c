@@ -370,6 +370,20 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
+
+    pte_t *pte;
+    if ((pte = walk(pagetable, va0, 0)) == 0) 
+      return -1;
+    if (*pte & PTE_COW) {
+      char *mem = (char *)kalloc();
+      if (mem == 0) return -1;
+      char *pa = (char *)PTE2PA(*pte);
+      memmove(mem, pa, PGSIZE);
+      int flags = (PTE_FLAGS(*pte) & (~PTE_COW)) | PTE_W;
+      *pte = PA2PTE(mem) | flags;
+      kfree(pa);
+    }
+    
     pa0 = walkaddr(pagetable, va0);
     if(pa0 == 0) 
       return -1;
