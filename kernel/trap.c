@@ -11,6 +11,7 @@ uint ticks;
 
 extern char trampoline[], uservec[], userret[];
 extern int pref_count[];
+extern char etext[];
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
@@ -77,6 +78,7 @@ usertrap(void)
     // if cow page fault
     test1();
     uint64 erraddr = r_stval();
+    if (erraddr >= MAXVA) goto killed;
     pte_t *pte;
     if ((pte = walk(p->pagetable, erraddr, 0)) == 0) goto killed;
     if ((*pte & PTE_COW) == 0) goto killed;
