@@ -360,6 +360,15 @@ exit(int status)
   wakeup1(initproc);
   release(&initproc->lock);
 
+  // 这里增加这一步，而不是使用 acquire(&p->parent->lock), release(&p->parent->lock)，是防止这种情况：
+  // 子进程尝试获取父进程的锁，而父进程持有自己锁，并正在 exit 中，父进程把当前进程的父进程修改成 initproc，然后父进程切换到 scheduler，释放自身锁
+  // 子进程获取到了原来上述父进程的锁，但是释放的时候释放的是 p->parent，此时 p->parent 已经是 initproc 了
+  // 对不持有的锁释放，以及持有的原本的父进程的锁一直没有释放，这两个都是问题
+  // 所以先获取原本父进程，这样获取的和释放的是相同的锁
+  // 但是现在这样仍然存在问题：
+  // 父进程在 378 行这里把子进程交给 initproc，而在 359～361 唤醒 initproc 后，initproc 遍历发现没有 ZOMBIE 子进程，然后进入睡眠
+  // 而子进程（当前进程）将自身设置为 ZOMBIE 后，应该唤醒 initproc，但是没有唤醒
+  // 但是我觉得这个不会造成什么影响，因为每个进程退出时都会唤醒一次 initproc
   // grab a copy of p->parent, to ensure that we unlock the same
   // parent we locked. in case our parent gives us away to init while
   // we're waiting for the parent lock. we may then race with an
@@ -441,6 +450,8 @@ wait(uint64 addr)
       return -1;
     }
     
+    // 这里是检查完条件，进入睡眠，之间的间隙，如果不获取 p->lock，那么这个间隙中，如果子进程把自身状态设置为 ZOMBIE，然后唤醒父进程，那么就会丢失唤醒
+    // 所以需要 p->lock 为条件锁
     // Wait for a child to exit.
     sleep(p, &p->lock);  //DOC: wait-sleep
   }
