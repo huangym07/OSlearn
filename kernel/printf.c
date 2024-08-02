@@ -137,12 +137,14 @@ void
 backtrace()
 {
   printf("backtrace:\n");
+  
+  uint64 *curr_fp = (uint64 *)r_fp(), ra;
+  uint64 *init_fp = (uint64 *)PGROUNDUP((uint64)curr_fp);
 
-  uint64 *s0 = (uint64 *)r_fp(), ra;
-
-  while ((uint64)s0 != PGROUNDDOWN((uint64)s0)) {
-    ra = *(s0 - 1);
+  while ((uint64)curr_fp != (uint64)init_fp) {
+    ra = *(curr_fp - 1);
     printf("%p\n", ra);
-    s0 = (uint64 *)*(s0 - 2);
+    // printf("fp is %p\n", curr_fp);
+    curr_fp = (uint64 *)*(curr_fp - 2);
   }
 }
