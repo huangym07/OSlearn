@@ -60,6 +60,8 @@ void            ramdiskintr(void);
 void            ramdiskrw(struct buf*);
 
 // kalloc.c
+void  					incref(uint64 pa);
+
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
@@ -140,6 +142,7 @@ int             fetchaddr(uint64, uint64*);
 void            syscall();
 
 // trap.c
+int cowfault(pagetable_t pagetable, uint64 va);
 extern uint     ticks;
 void            trapinit(void);
 void            trapinithart(void);
@@ -154,6 +157,7 @@ void            uartputc_sync(int);
 int             uartgetc(void);
 
 // vm.c
+pte_t * walk(pagetable_t pagetable, uint64 va, int alloc);
 void            kvminit(void);
 void            kvminithart(void);
 uint64          kvmpa(uint64);
