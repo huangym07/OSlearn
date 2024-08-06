@@ -1,0 +1,17 @@
+sequence: put_thread0 e->next = n, put_thread1 e->next = n, put_thread0 *p = e, put_thread1 *p = e
+
+Details are followed below:
+put_thread0 calls put(key0, value0)
+put_thread1 calls put(key1, value1)
+put_thread0 find no key same as key0, num0 = key0 % NBUCKET
+put_thread1 find no key same as key1, num1 = key1 % NBUCKET
+put_thread0 calls insert(key0, value0, &table[num0], table[num0])
+put_thread1 calls insert(key1, value1, &table[num1], table[num1]);
+num0 is equal to num1
+put_thread0 in insert e->next = n
+put_thread1 in insert e->next = n
+put_thread0 in insert *p = e
+put_thread1 in insert *p = e
+As a result, just one entry(key1, value1) is successfully inserted, and the entry(key0, value0) is missing.
+
+put_thread0 and put_thread1 insert two different entries with the same value of the expression key % NBUCKET in the same location of the hashtable in the same time.
