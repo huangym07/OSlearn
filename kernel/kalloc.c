@@ -21,12 +21,14 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
-} kmem;
+} kmem[NCPU]; // 为每个 CPU 分配一个内存链表
 
 void
 kinit()
 {
-  initlock(&kmem.lock, "kmem");
+  // 为每个 CPU 初始化内存锁
+  for (int i = 0; i < NCPU; i++) 
+    initlock(&kmem[i].lock, "kmem");
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -56,10 +58,14 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  release(&kmem.lock);
+  // 释放内存到当前 CPU 的链表中
+  push_off();
+  int hartid = cpuid();
+  acquire(&kmem[hartid].lock);
+  r->next = kmem[hartid].freelist;
+  kmem[hartid].freelist = r;
+  release(&kmem[hartid].lock);
+  pop_off();
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -70,11 +76,31 @@ kalloc(void)
 {
   struct run *r;
 
-  acquire(&kmem.lock);
-  r = kmem.freelist;
+//-------------------------------
+  push_off();
+
+  // 从当前 CPU 的内存链表中获取内存
+  int hartid = cpuid();
+
+  acquire(&kmem[hartid].lock);
+  r = kmem[hartid].freelist;
   if(r)
-    kmem.freelist = r->next;
-  release(&kmem.lock);
+    kmem[hartid].freelist = r->next;
+  release(&kmem[hartid].lock);
+
+  // 当前 CPU 的内存链表为空就从其他 CPU 的内存链表里获取内存
+  // 释放当前 CPU 内存锁后再去获取其他 CPU 内存锁，防止死锁
+  for (int i = 0; i < NCPU && !r; i++) {
+    if (i == hartid) continue;
+    acquire(&kmem[i].lock);
+    r = kmem[i].freelist;
+    if (r) 
+      kmem[i].freelist = r->next;
+    release(&kmem[i].lock);
+  }
+  
+  pop_off();
+//--------------------------------
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
