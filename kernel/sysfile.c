@@ -305,10 +305,57 @@ sys_open(void)
     }
   } else {
     if((ip = namei(path)) == 0){
+      // debug--------------------------------
+      // printf("sys_open: open %s failed\n", path);
+      // -------------------------------------
       end_op();
       return -1;
     }
+
     ilock(ip);
+    
+    if (ip->type == T_SYMLINK && !(omode & O_NOFOLLOW)) {
+      int dep = 0; // depth of symbolic link
+
+      while (ip->type == T_SYMLINK && ++dep <= MAXDEPTH) {
+        // debug--------------------------------------------------
+        // printf("sys_open: %s is a symbolic link inode, read from it, result is ", path);
+        // -------------------------------------------------------
+
+        if (readi(ip, 0, (uint64)path, 0, ip->size) != ip->size) {
+          iunlockput(ip);
+          end_op();
+          return -1;
+        }
+        
+        // debug----------------------------------------------------
+        // printf("%s\n", path);
+        // ---------------------------------------------------------
+
+        iunlockput(ip);
+
+        // debug-----------------------------------------------------
+        // printf("sys_open: next inode refered by symbolic link is %s\n", path);
+        if ((ip = namei(path)) == 0) {
+          // printf("sys_open: open %s failed\n", path);
+          end_op();
+          return -1;
+        }
+        // ----------------------------------------------------------
+        
+        ilock(ip);
+      }
+    
+      if (dep > MAXDEPTH) {
+        // debug--------------------------------------------
+        // printf("sys_open: dep is %d, bigger than MAXDEPTH %d\n", dep, MAXDEPTH);
+        // -------------------------------------------------
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
+    }
+    
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
       end_op();
@@ -482,5 +529,45 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+// Create a symbolic link at path refering to target
+uint64
+sys_symlink(void)
+{
+  int n = 0;
+  char target[MAXPATH], path[MAXPATH];
+  struct inode *ip;
+
+  // Get target and path.
+  if ((n = argstr(0, target, MAXPATH)) < 0 || argstr(1, path, MAXPATH) < 0)
+    return -1;
+
+  begin_op();
+  // Create an locked inode with type T_SYMLINK at path.
+  if ((ip = create(path, T_SYMLINK, 0, 0)) == 0) {
+    end_op();
+    return -1;
+  }
+
+  // Writes target to symlink.
+  // debug-----------------------------------------------------
+  // printf("sys_symlink: write %s to symbolic link inode %s\n", target, path);
+  if (writei(ip, 0, (uint64)(target), 0, n + 1) != n + 1) {
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+  // if (readi(ip, 0, (uint64)target, 0, n + 1) != n + 1) 
+  //   printf("sys_symlink: read check failed\n");
+  // else 
+  //   printf("sys_symlink: read check %s is written to %s\n%s size is %d\n", target, path, path);
+  // ----------------------------------------------------------
+
+  
+
+  iunlockput(ip);
+  end_op();
   return 0;
 }
