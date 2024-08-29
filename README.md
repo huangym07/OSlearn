@@ -10,3 +10,4 @@ MIT 6.s081 OSlearn
 - lab cow2 &#10004; https://github.com/huangym07/OSlearn/tree/cow2
 - lab thread &#10004; https://github.com/huangym07/OSlearn/tree/thread
 - lab lock &#10004; https://github.com/huangym07/OSlearn/tree/lock
+- lab fs $#10004; https://github.com/huangym07/OSlearn/tree/fs
