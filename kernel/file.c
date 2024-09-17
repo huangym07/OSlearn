@@ -2,6 +2,7 @@
 // Support functions for system calls that involve file descriptors.
 //
 
+#include "fcntl.h"
 #include "types.h"
 #include "riscv.h"
 #include "defs.h"
@@ -180,3 +181,26 @@ filewrite(struct file *f, uint64 addr, int n)
   return ret;
 }
 
+// return 0 -> file has permissions
+// -1 -> doesn't has
+int 
+filepermit(struct file* f, int prot, int flags)
+{
+  acquire(&ftable.lock);
+
+  if ((prot & PROT_READ) && (f->readable == 0)) {
+    printf("fileprot failed: file is not readable.\n");
+    goto failed;
+  }
+  if ((prot & PROT_WRITE) && (MAP_SHARED & flags) && (f->writable == 0)) {
+    printf("fileprot failed: file is not writable.\n");
+    goto failed;
+  }
+
+  release(&ftable.lock);
+  return 0;
+
+failed:
+  release(&ftable.lock);
+  return -1;
+}

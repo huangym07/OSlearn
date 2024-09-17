@@ -484,3 +484,45 @@ sys_pipe(void)
   }
   return 0;
 }
+
+// Return address at which to map, 0xffffffffffffffff -> failed
+uint64
+sys_mmap(void)
+{
+  // to simplify, assume that addr is NULL, and offset is zero
+  // and prot is either PROT_HEAD or PROT_WRITE (or both), and
+  // flags is either MAP_SHARED or MAP_PRIVATE
+  int length, prot, flags, fd;
+  struct file *f;
+  if (argint(1, &length) < 0)
+    goto failed;
+  if (argint(2, &prot) < 0) 
+    goto failed;
+  if (argint(3, &flags) < 0)
+    goto failed;
+  if (argfd(4, &fd, &f) < 0)
+    goto failed;
+
+  // printf("my checkpoint1:\n");
+  // printf("length is %d, prot is %x, flags is %x, fd is %d\n", length, prot, flags, fd);
+
+  if (filepermit(f, prot, flags) < 0) {
+    printf("mmap failed: file has no permissions.\n");
+    goto failed;
+  }
+  // printf("filepermit passed\n");
+  // printf("my checkpoint1 over.\n");
+
+  
+
+failed:  
+  return (uint64)-1;
+}
+
+// 0 -> succeed, -1 -> failed
+uint64
+sys_munmap(void)
+{
+
+  return -1;
+}
