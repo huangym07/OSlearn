@@ -485,6 +485,31 @@ sys_pipe(void)
   return 0;
 }
 
+// 0 -> succeed, -1 -> failed
+uint64
+vmaalloc(uint64 addr, uint64 length, int prot, int fd)
+{
+  struct proc *p = myproc();
+  for (int i = 0; i < NPVMA; i++) {
+    if (p->mvma[i].length == 0) {
+      struct vma *vma = &p->mvma[i];
+      vma->addr = addr;
+      vma->length = length;
+      vma->permit = prot;
+      vma->f = p->ofile[fd];
+      filedup(vma->f);
+      return 0;
+    }
+  }
+  return -1;
+}
+
+void
+print(struct vma* vma)
+{
+  printf("vma: addr is %p, length is %d, prot is %x, file address is %p\n", vma->addr, vma->length, vma->permit, vma->f);
+}
+
 // Return address at which to map, 0xffffffffffffffff -> failed
 uint64
 sys_mmap(void)
@@ -494,7 +519,11 @@ sys_mmap(void)
   // flags is either MAP_SHARED or MAP_PRIVATE
   int length, prot, flags, fd;
   struct file *f;
+  uint64 addr,  // address at which to map the file
+    lenroundup; // PGROUNDUP(length)
   if (argint(1, &length) < 0)
+    goto failed;
+  if (length <= 0)
     goto failed;
   if (argint(2, &prot) < 0) 
     goto failed;
@@ -503,6 +532,7 @@ sys_mmap(void)
   if (argfd(4, &fd, &f) < 0)
     goto failed;
 
+  // check permissions
   // printf("my checkpoint1:\n");
   // printf("length is %d, prot is %x, flags is %x, fd is %d\n", length, prot, flags, fd);
 
@@ -513,8 +543,29 @@ sys_mmap(void)
   // printf("filepermit passed\n");
   // printf("my checkpoint1 over.\n");
 
-  
+  // find an address at which to map the file,
+  // and lazily allocate a multiple of the page size
+  // which is just bigger than or equal to length
+  addr = PGROUNDUP(myproc()->sz);
+  lenroundup = PGROUNDUP((uint64)length);
+  myproc()->sz += lenroundup;
 
+  // allocate a unused vma
+  if (vmaalloc(addr, lenroundup, prot, fd) < 0)
+    goto failed;
+  // check vma
+  // printf("my checkpoint2 for vma: \n");
+  // printf("addr is %p, length is %d, prot is %x, file addr is %p\n", addr, length, prot, myproc()->ofile[fd]);
+  // printf("now look through vmas: \n");
+  // struct proc *p = myproc();
+  // for (int i = 0; i < NPVMA; i++) {
+  //   if (p->mvma[i].length > 0) 
+  //     print(&p->mvma[i]);
+  // }
+  // printf("all used vmas are printed\n");
+  // printf("my checkpoint2 over.\n");
+
+  return addr;
 failed:  
   return (uint64)-1;
 }
