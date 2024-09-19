@@ -5,6 +5,10 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -27,6 +31,18 @@ void
 trapinithart(void)
 {
   w_stvec((uint64)kernelvec);
+}
+
+// find the vma in which argument addr is 
+struct vma* 
+findvma(uint64 addr)
+{
+  struct proc* p = myproc();
+  for (int i = 0; i < NPVMA; i++) {
+    if (p->mvma[i].used && addr >= p->mvma[i].addr && addr < p->mvma[i].addr + p->mvma[i].length)
+      return &p->mvma[i];
+  }
+  return 0;
 }
 
 //
@@ -67,7 +83,39 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if (r_scause() == 13 || r_scause() == 15) {
+    // page fault
+    uint64 stval = r_stval();
+    printf("trap.c usertrap(): page fault faulting dereferenced address is %p\n", stval);
+    // check whether stval is legal
+    if (stval < PGROUNDUP(p->trapframe->sp) || stval >= p->sz) 
+      goto killed;
+    // find the vma in which stval is
+    struct vma* vma = findvma(stval);
+    if (vma == 0) 
+      goto killed;
+    // allocate a physical page, clear it with zero
+    char *mem = (char*)kalloc();
+    if (mem == 0) 
+      goto killed;
+    memset(mem, 0, PGSIZE);
+    // read the file
+    struct file* f = vma->f;
+    uint off = PGROUNDDOWN(stval) - vma->addr;
+    acquiresleep(&f->ip->lock);
+    uint size = f->ip->size - off;
+    size = size > PGSIZE ? PGSIZE : size;
+    if (size != readi(f->ip, 0, (uint64)mem, off, PGSIZE)) 
+      goto killed;
+    releasesleep(&f->ip->lock);
+    // map the physical page to the address space
+    int perm = PTE_U;
+    if (vma->permit & PROT_READ) perm |= PTE_R;
+    if (vma->permit & PROT_WRITE) perm |= PTE_W;
+    if (mappages(p->pagetable, PGROUNDDOWN(stval), PGSIZE, (uint64)mem, perm) < 0)
+      goto killed;
   } else {
+killed:
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;

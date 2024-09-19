@@ -84,7 +84,8 @@ enum procstate { UNUSED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 struct vma {
   uint64 addr;      // address at which to map the file
-  uint64 length;       // length of the vma
+  uint64 length;    // length of the vma
+  int used;         // 1 -> used or 0 -> unused 
   int permit;       // permissions of the vma
   struct file *f;   // file of the vma
 };

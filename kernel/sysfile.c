@@ -491,11 +491,12 @@ vmaalloc(uint64 addr, uint64 length, int prot, int fd)
 {
   struct proc *p = myproc();
   for (int i = 0; i < NPVMA; i++) {
-    if (p->mvma[i].length == 0) {
+    if (p->mvma[i].used == 0) {
       struct vma *vma = &p->mvma[i];
       vma->addr = addr;
       vma->length = length;
       vma->permit = prot;
+      vma->used = 1;
       vma->f = p->ofile[fd];
       filedup(vma->f);
       return 0;
