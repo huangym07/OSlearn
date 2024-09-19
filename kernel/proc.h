@@ -83,10 +83,12 @@ struct trapframe {
 enum procstate { UNUSED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 struct vma {
-  uint64 addr;      // address at which to map the file
+  uint64 addr;      // address at which to map the file, doesn't change
+  uint64 newaddr;   // valid starting address of the vma, can be changed
   uint64 length;    // length of the vma
   int used;         // 1 -> used or 0 -> unused 
   int permit;       // permissions of the vma
+  int flags;        // MAP_SHARED or MAPP_PRIVATE
   struct file *f;   // file of the vma
 };
 

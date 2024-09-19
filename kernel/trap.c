@@ -39,7 +39,7 @@ findvma(uint64 addr)
 {
   struct proc* p = myproc();
   for (int i = 0; i < NPVMA; i++) {
-    if (p->mvma[i].used && addr >= p->mvma[i].addr && addr < p->mvma[i].addr + p->mvma[i].length)
+    if (p->mvma[i].used && addr >= p->mvma[i].newaddr && addr < p->mvma[i].newaddr + p->mvma[i].length)
       return &p->mvma[i];
   }
   return 0;

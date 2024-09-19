@@ -487,15 +487,17 @@ sys_pipe(void)
 
 // 0 -> succeed, -1 -> failed
 uint64
-vmaalloc(uint64 addr, uint64 length, int prot, int fd)
+vmaalloc(uint64 addr, uint64 length, int prot, int flags, int fd)
 {
   struct proc *p = myproc();
   for (int i = 0; i < NPVMA; i++) {
     if (p->mvma[i].used == 0) {
       struct vma *vma = &p->mvma[i];
       vma->addr = addr;
+      vma->newaddr = addr;
       vma->length = length;
       vma->permit = prot;
+      vma->flags =flags;
       vma->used = 1;
       vma->f = p->ofile[fd];
       filedup(vma->f);
@@ -508,7 +510,7 @@ vmaalloc(uint64 addr, uint64 length, int prot, int fd)
 void
 print(struct vma* vma)
 {
-  printf("vma: addr is %p, length is %d, prot is %x, file address is %p\n", vma->addr, vma->length, vma->permit, vma->f);
+  printf("vma: addr is %p, valid addr is %p, length is %d, prot is %x, file address is %p\n", vma->addr, vma->newaddr, vma->length, vma->permit, vma->f);
 }
 
 // Return address at which to map, 0xffffffffffffffff -> failed
@@ -552,7 +554,7 @@ sys_mmap(void)
   myproc()->sz += lenroundup;
 
   // allocate a unused vma
-  if (vmaalloc(addr, lenroundup, prot, fd) < 0)
+  if (vmaalloc(addr, lenroundup, prot, flags, fd) < 0)
     goto failed;
   // check vma
   // printf("my checkpoint2 for vma: \n");
@@ -575,6 +577,15 @@ failed:
 uint64
 sys_munmap(void)
 {
+  uint64 addr;
+  int length;
+
+  if (argaddr(0, &addr) < 0)
+    return -1;
+  if (argint(1, &length) < 0)
+    return -1;
+  
+
 
   return -1;
 }
