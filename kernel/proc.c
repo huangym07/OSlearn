@@ -333,6 +333,10 @@ reparent(struct proc *p)
   }
 }
 
+extern struct vma* findvma(uint64 addr);
+int writeback(struct file* f, uint64 addr, uint64 len);
+int munmap(uint64 addr, uint64 length);
+
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait().
@@ -343,6 +347,12 @@ exit(int status)
 
   if(p == initproc)
     panic("init exiting");
+  
+  // munmap all vmas
+  for (int i = 0; i < NPVMA; i++) {
+    if (p->mvma[i].used && munmap(p->mvma[i].newaddr, p->mvma[i].length) < 0)
+      panic("exit: munmap vmas failed\n"); 
+  }
 
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
