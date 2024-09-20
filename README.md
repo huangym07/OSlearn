@@ -11,3 +11,4 @@ MIT 6.s081 OSlearn
 - lab thread &#10004; https://github.com/huangym07/OSlearn/tree/thread
 - lab lock &#10004; https://github.com/huangym07/OSlearn/tree/lock
 - lab fs &#10004; https://github.com/huangym07/OSlearn/tree/fs
+- lab mmap &#10004; https://github.com/huangym07/OSlearn/tree/mmap
