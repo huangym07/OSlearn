@@ -281,6 +281,14 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
+  
+  // copy all vmas and increase the file ref count by 1
+  for (int i = 0; i < NPVMA; i++) {
+    if (p->mvma[i].used) {
+      filedup(p->mvma[i].f);
+      np->mvma[i] = p->mvma[i];
+    }
+  }
 
   np->parent = p;
 
@@ -334,7 +342,7 @@ reparent(struct proc *p)
 }
 
 extern struct vma* findvma(uint64 addr);
-int writeback(struct file* f, uint64 addr, uint64 len);
+int writeback(struct vma* f, uint64 addr, uint64 len);
 int munmap(uint64 addr, uint64 length);
 
 // Exit the current process.  Does not return.

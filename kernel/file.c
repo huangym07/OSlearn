@@ -189,11 +189,11 @@ filepermit(struct file* f, int prot, int flags)
   acquire(&ftable.lock);
 
   if ((prot & PROT_READ) && (f->readable == 0)) {
-    printf("fileprot failed: file is not readable.\n");
+    // printf("fileprot failed: file is not readable.\n");
     goto failed;
   }
   if ((prot & PROT_WRITE) && (MAP_SHARED & flags) && (f->writable == 0)) {
-    printf("fileprot failed: file is not writable.\n");
+    // printf("fileprot failed: file is not writable.\n");
     goto failed;
   }
 

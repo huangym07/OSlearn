@@ -540,7 +540,7 @@ sys_mmap(void)
   // printf("length is %d, prot is %x, flags is %x, fd is %d\n", length, prot, flags, fd);
 
   if (filepermit(f, prot, flags) < 0) {
-    printf("mmap failed: file has no permissions.\n");
+    // printf("mmap failed: file has no permissions.\n");
     goto failed;
   }
   // printf("filepermit passed\n");
@@ -576,16 +576,62 @@ failed:
 extern struct vma* findvma(uint64 addr);
 
 int
-writeback(struct file* f, uint64 addr, uint64 len)
+writeback(struct vma* vma, uint64 addr, uint64 len)
 {
   pte_t *pte;
+  struct file *f = vma->f;
+  uint off;
+  int r, ret = 0;
   for (uint64 p = addr; p < addr + len; p += PGSIZE) {
     if ((pte = walk(myproc()->pagetable, p, 0)) == 0 || (*pte & PTE_V) == 0) {
-      f->off += PGSIZE;
+      // printf("writeback: no physical page, va is %p\n", p);
       continue;
     }
-    if (filewrite(f, p, PGSIZE) < 0)
-      return -1;
+    // writeback to file should not change f->off, 
+    // because there might be more than one vma corresponding to the same file
+    // and system call write can also change f->off
+    off = p - vma->addr;
+    int n = PGSIZE;
+    if(f->type == FD_PIPE){
+      ret = pipewrite(f->pipe, p, n);
+    } else if(f->type == FD_DEVICE){
+      if(f->major < 0 || f->major >= NDEV || !devsw[f->major].write)
+        return -1;
+      ret = devsw[f->major].write(1, p, n);
+    } else if(f->type == FD_INODE){
+      // write a few blocks at a time to avoid exceeding
+      // the maximum log transaction size, including
+      // i-node, indirect block, allocation blocks,
+      // and 2 blocks of slop for non-aligned writes.
+      // this really belongs lower down, since writei()
+      // might be writing a device like the console.
+      int max = ((MAXOPBLOCKS-1-1-2) / 2) * BSIZE;
+      int i = 0;
+      // printf("writeback: f->type == FD_INODE\n");
+      while(i < n){
+        int n1 = n - i;
+        if(n1 > max)
+          n1 = max;
+
+        begin_op();
+        ilock(f->ip);
+        if ((r = writei(f->ip, 1, p + i, off, n1)) > 0)
+          off += r;
+        iunlock(f->ip);
+        end_op();
+
+        if(r != n1){
+          // error from writei
+          break;
+        }
+        i += r;
+      }
+      ret = (i == n ? n : -1);
+      if (ret < 0) 
+        return -1;
+    } else {
+      panic("writeback");
+    }
   }
   return 0;
 }
@@ -595,7 +641,7 @@ munmap(uint64 addr, uint64 length)
 {
   // printf("munmap: addr is %p, length is %d\n", addr, length);
   struct vma* vma = findvma(addr);
-  // printf("munmap: vma is %p\n", vma);
+  // printf("munmap: vma is %p, pid=%d\n", vma, myproc()->pid);
   if (vma == 0) 
     return -1;
 
@@ -607,7 +653,7 @@ munmap(uint64 addr, uint64 length)
     uint64 size = len >= vma->length ? vma->length : len;
     // printf("munmap: first size is %d\n", size);
     // write back if MAP_SHARED and page is allocated and maped into address space
-    if ((vma->flags & MAP_SHARED) && writeback(vma->f, vma->newaddr, size) < 0) {
+    if ((vma->flags & MAP_SHARED) && (vma->permit & PROT_WRITE) && writeback(vma, vma->newaddr, size) < 0) {
       // printf("munmap: writeback failed\n");
       return -1;
       // uint64 size2 = filewrite(vma->f, vma->newaddr, size);
@@ -641,7 +687,7 @@ munmap(uint64 addr, uint64 length)
     if (addr + len >= vma->newaddr + vma->length) 
       len = vma->newaddr + vma->length - addr;
     // write back if MAP_SHARED
-    if ((vma->flags & MAP_SHARED) && writeback(vma->f, vma->newaddr, len) < 0) 
+    if ((vma->flags & MAP_SHARED) && (vma->permit & PROT_WRITE) && writeback(vma, addr, len) < 0) 
       return -1;
     // printf("munmap: checkpoint 3\n");
     uvmunmap(myproc()->pagetable, addr, len / PGSIZE, 1);
