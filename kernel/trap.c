@@ -86,7 +86,6 @@ usertrap(void)
   } else if (r_scause() == 13 || r_scause() == 15) {
     // page fault
     uint64 stval = r_stval();
-    // printf("trap.c usertrap(): page fault faulting dereferenced address is %p\n", stval);
     // check whether stval is legal
     if (stval < PGROUNDUP(p->trapframe->sp) || stval >= p->sz) 
       goto killed;

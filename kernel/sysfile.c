@@ -507,12 +507,6 @@ vmaalloc(uint64 addr, uint64 length, int prot, int flags, int fd)
   return -1;
 }
 
-void
-print(struct vma* vma)
-{
-  printf("vma: addr is %p, valid addr is %p, length is %d, prot is %x, file address is %p\n", vma->addr, vma->newaddr, vma->length, vma->permit, vma->f);
-}
-
 // Return address at which to map, 0xffffffffffffffff -> failed
 uint64
 sys_mmap(void)
@@ -536,15 +530,8 @@ sys_mmap(void)
     goto failed;
 
   // check permissions
-  // printf("my checkpoint1:\n");
-  // printf("length is %d, prot is %x, flags is %x, fd is %d\n", length, prot, flags, fd);
-
-  if (filepermit(f, prot, flags) < 0) {
-    // printf("mmap failed: file has no permissions.\n");
+  if (filepermit(f, prot, flags) < 0) 
     goto failed;
-  }
-  // printf("filepermit passed\n");
-  // printf("my checkpoint1 over.\n");
 
   // find an address at which to map the file,
   // and lazily allocate a multiple of the page size
@@ -556,17 +543,6 @@ sys_mmap(void)
   // allocate a unused vma
   if (vmaalloc(addr, lenroundup, prot, flags, fd) < 0)
     goto failed;
-  // check vma
-  // printf("my checkpoint2 for vma: \n");
-  // printf("addr is %p, length is %d, prot is %x, file addr is %p\n", addr, length, prot, myproc()->ofile[fd]);
-  // printf("now look through vmas: \n");
-  // struct proc *p = myproc();
-  // for (int i = 0; i < NPVMA; i++) {
-  //   if (p->mvma[i].length > 0) 
-  //     print(&p->mvma[i]);
-  // }
-  // printf("all used vmas are printed\n");
-  // printf("my checkpoint2 over.\n");
 
   return addr;
 failed:  
@@ -583,10 +559,8 @@ writeback(struct vma* vma, uint64 addr, uint64 len)
   uint off;
   int r, ret = 0;
   for (uint64 p = addr; p < addr + len; p += PGSIZE) {
-    if ((pte = walk(myproc()->pagetable, p, 0)) == 0 || (*pte & PTE_V) == 0) {
-      // printf("writeback: no physical page, va is %p\n", p);
+    if ((pte = walk(myproc()->pagetable, p, 0)) == 0 || (*pte & PTE_V) == 0) 
       continue;
-    }
     // writeback to file should not change f->off, 
     // because there might be more than one vma corresponding to the same file
     // and system call write can also change f->off
@@ -607,7 +581,6 @@ writeback(struct vma* vma, uint64 addr, uint64 len)
       // might be writing a device like the console.
       int max = ((MAXOPBLOCKS-1-1-2) / 2) * BSIZE;
       int i = 0;
-      // printf("writeback: f->type == FD_INODE\n");
       while(i < n){
         int n1 = n - i;
         if(n1 > max)
@@ -639,29 +612,17 @@ writeback(struct vma* vma, uint64 addr, uint64 len)
 int
 munmap(uint64 addr, uint64 length)
 {
-  // printf("munmap: addr is %p, length is %d\n", addr, length);
   struct vma* vma = findvma(addr);
-  // printf("munmap: vma is %p, pid=%d\n", vma, myproc()->pid);
   if (vma == 0) 
     return -1;
 
-  // printf("munmap: checkpoint 1\n");
   uint64 len = PGROUNDUP(length);
   if (vma->newaddr == addr) {
-    // printf("munmap: checkpoint first 2\n");
     // unmap head of vma
     uint64 size = len >= vma->length ? vma->length : len;
-    // printf("munmap: first size is %d\n", size);
-    // write back if MAP_SHARED and page is allocated and maped into address space
-    if ((vma->flags & MAP_SHARED) && (vma->permit & PROT_WRITE) && writeback(vma, vma->newaddr, size) < 0) {
-      // printf("munmap: writeback failed\n");
+    // writeback when vma has PROT_WRITE and MAP_SHARED
+    if ((vma->flags & MAP_SHARED) && (vma->permit & PROT_WRITE) && writeback(vma, vma->newaddr, size) < 0)
       return -1;
-      // uint64 size2 = filewrite(vma->f, vma->newaddr, size);
-      // printf("munmap: second size is %d\n", size2);
-      // if (size != size2)
-      //   return -1;
-    }
-    // printf("munmap: checkpoint 2\n");
     if (vma->length <= len) {
       // whole vma is unmaped
       // decrease the ref count of the file by 1
@@ -682,14 +643,12 @@ munmap(uint64 addr, uint64 length)
       vma->length -= len;
     }
   } else {
-    // printf("munmap: checkpoint first 3\n");
     // unmap tail of vma
     if (addr + len >= vma->newaddr + vma->length) 
       len = vma->newaddr + vma->length - addr;
     // write back if MAP_SHARED
     if ((vma->flags & MAP_SHARED) && (vma->permit & PROT_WRITE) && writeback(vma, addr, len) < 0) 
       return -1;
-    // printf("munmap: checkpoint 3\n");
     uvmunmap(myproc()->pagetable, addr, len / PGSIZE, 1);
     vma->length = addr - vma->newaddr;
   }
@@ -709,6 +668,5 @@ sys_munmap(void)
     return -1;
   
   int ret = munmap(addr, length);
-  // printf("sys_munmap: ret is %d\n", ret);
   return (uint64)ret;
 }
